@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Carnival POS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app">
+    <section id="login-screen" class="screen screen-login">
+      <div class="login-card">
+        <div class="ticket-stripe" aria-hidden="true"></div>
+        <p class="eyebrow">Fairground Terminal</p>
+        <h1>Carnival POS</h1>
+        <p class="lede">Select your stall to launch the register.</p>
+
+        <label for="stall-select">Choose stall</label>
+        <select id="stall-select"></select>
+
+        <label for="password-input">Stall password</label>
+        <input id="password-input" type="password" autocomplete="current-password" placeholder="••••••••">
+        <p class="hint">Default password for Burger Station: burger123</p>
+
+        <button id="login-btn" class="btn btn-primary btn-block" type="button">Open POS Terminal</button>
+        <p id="login-error" class="error" hidden></p>
+
+        <div class="login-actions">
+          <button id="create-stall-btn" class="btn btn-ghost" type="button">Create New Stall</button>
+          <button id="quick-login-btn" class="btn btn-ghost" type="button">Quick Test Login</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="pos-screen" class="screen screen-pos" hidden>
+      <header class="pos-header">
+        <button id="switch-stall-btn" class="btn btn-ghost" type="button">Switch Stall</button>
+        <div class="pos-identity">
+          <h2 id="stall-title">Carnival POS</h2>
+          <span id="stall-type" class="badge"></span>
+        </div>
+        <button id="add-item-btn" class="btn btn-primary" type="button">Add Menu Item</button>
+      </header>
+
+      <div class="pos-workspace">
+        <section class="panel menu-panel">
+          <div class="menu-toolbar">
+            <h3>Menu Catalog</h3>
+            <label class="search-label" for="menu-search">Search this stall</label>
+            <input id="menu-search" type="search" placeholder="Search items by name or description">
+            <p id="menu-count" class="menu-count"></p>
+          </div>
+          <div id="menu-list" class="menu-list"></div>
+        </section>
+
+        <aside class="panel cart-panel">
+          <h3>Current Cart</h3>
+          <div id="cart-list" class="cart-list"></div>
+          <div class="cart-summary">
+            <p id="cart-total" class="total">Total: KWD 0.000</p>
+            <div class="cart-actions">
+              <button id="cancel-btn" class="btn btn-danger" type="button">Cancel</button>
+              <button id="checkout-btn" class="btn btn-success" type="button">Complete Order</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </div>
+
+  <div id="modal-root" class="modal-root" hidden>
+    <div class="modal-backdrop" data-close-modal></div>
+    <div id="modal-box" class="modal" role="dialog" aria-modal="true"></div>
+  </div>
+
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
