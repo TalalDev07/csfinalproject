@@ -19,10 +19,31 @@ const Store = (() => {
     try {
       const raw = localStorage.getItem(KEY);
       if (!raw) return emptyDb();
-      return { ...emptyDb(), ...JSON.parse(raw) };
+      const db = { ...emptyDb(), ...JSON.parse(raw) };
+      return normalizeStock(db);
     } catch {
       return emptyDb();
     }
+  }
+
+  function normalizeStock(db) {
+    let changed = false;
+    db.items.forEach((item) => {
+      if (typeof item.stock !== "number" || Number.isNaN(item.stock) || item.stock < 0) {
+        item.stock = 20;
+        changed = true;
+      }
+    });
+    if (changed) save(db);
+    return db;
+  }
+
+  function parseStock(stock) {
+    const parsed = Number(stock);
+    if (Number.isNaN(parsed) || parsed < 0 || !Number.isInteger(parsed)) {
+      throw new Error("Stock must be a whole number of 0 or more.");
+    }
+    return parsed;
   }
 
   function save(db) {
@@ -103,7 +124,7 @@ const Store = (() => {
     };
   }
 
-  function addItem(stallId, name, price, description, imagePath = "") {
+  function addItem(stallId, name, price, description, imagePath = "", stock = 20) {
     const fields = parseItemFields(name, price, description);
     const db = load();
     const item = {
@@ -111,6 +132,7 @@ const Store = (() => {
       stall_id: stallId,
       ...fields,
       image_path: imagePath,
+      stock: parseStock(stock),
       is_active: 1,
     };
     db.nextItemId += 1;
@@ -119,7 +141,7 @@ const Store = (() => {
     return item.item_id;
   }
 
-  function updateItem(itemId, name, price, description, imagePath) {
+  function updateItem(itemId, name, price, description, imagePath, stock) {
     const fields = parseItemFields(name, price, description);
     const db = load();
     const item = db.items.find((row) => row.item_id === itemId);
@@ -132,7 +154,26 @@ const Store = (() => {
     if (imagePath !== undefined) {
       item.image_path = imagePath;
     }
+    if (stock !== undefined) {
+      item.stock = parseStock(stock);
+    }
     save(db);
+  }
+
+  function updateStock(itemId, stock) {
+    const db = load();
+    const item = db.items.find((row) => row.item_id === itemId);
+    if (!item) {
+      throw new Error("That item no longer exists.");
+    }
+    item.stock = parseStock(stock);
+    save(db);
+  }
+
+  function getAvailableStock(itemId) {
+    const item = getItem(itemId);
+    if (!item) return 0;
+    return Math.max(0, (item.stock || 0) - (cart[itemId] || 0));
   }
 
   function updateItemImage(itemId, imagePath) {
@@ -168,6 +209,7 @@ const Store = (() => {
   function addToOrder(itemId) {
     const item = getItem(itemId);
     if (!item || item.is_active === 0) return false;
+    if (getAvailableStock(itemId) <= 0) return false;
     cart[itemId] = (cart[itemId] || 0) + 1;
     return true;
   }
@@ -219,6 +261,9 @@ const Store = (() => {
       if (item.stall_id !== stallId) {
         throw new Error("The cart contains an item belonging to another stall.");
       }
+      if ((item.stock || 0) < line.quantity) {
+        throw new Error(`Not enough stock for ${item.item_name}.`);
+      }
     }
 
     const orderId = db.nextOrderId;
@@ -231,6 +276,8 @@ const Store = (() => {
     });
 
     snapshot.items.forEach((line) => {
+      const item = db.items.find((row) => row.item_id === line.item_id);
+      item.stock -= line.quantity;
       db.orderItems.push({
         order_item_id: db.nextOrderItemId,
         order_id: orderId,
@@ -257,15 +304,64 @@ const Store = (() => {
     if (getStalls().length) return;
 
     const burgerId = await createStall("Burger Station", "burger123", "food");
-    addItem(burgerId, "Classic Cheeseburger", 3.5, "Beef patty with cheddar & sauce");
-    addItem(burgerId, "Double Patty Burger", 4.75, "Two patties, extra cheese & bacon");
-    addItem(burgerId, "Crispy French Fries", 1.25, "Golden salted potato fries");
-    addItem(burgerId, "Soft Drink", 0.75, "Chilled soda can");
+    addItem(burgerId, "Classic Cheeseburger", 3.5, "Beef patty with cheddar & sauce", "", 24);
+    addItem(burgerId, "Double Patty Burger", 4.75, "Two patties, extra cheese & bacon", "", 18);
+    addItem(burgerId, "Crispy French Fries", 1.25, "Golden salted potato fries", "", 40);
+    addItem(burgerId, "Soft Drink", 0.75, "Chilled soda can", "", 36);
 
     const sweetId = await createStall("Sweet Treats", "sweet123", "dessert");
-    addItem(sweetId, "Chocolate Ice Cream", 1.5, "Rich creamy chocolate cone");
-    addItem(sweetId, "Cotton Candy", 1.0, "Pink sugar cloud on a stick");
-    addItem(sweetId, "Churros with Nutella", 2.25, "Cinnamon churros with dip");
+    addItem(sweetId, "Chocolate Ice Cream", 1.5, "Rich creamy chocolate cone", "", 20);
+    addItem(sweetId, "Cotton Candy", 1.0, "Pink sugar cloud on a stick", "", 30);
+    addItem(sweetId, "Churros with Nutella", 2.25, "Cinnamon churros with dip", "", 16);
+  }
+
+  function getStallStats(stallId) {
+    const db = load();
+    const stall = getStall(stallId);
+    const orders = db.orders.filter((order) => order.stall_id === stallId);
+    const orderIds = new Set(orders.map((order) => order.order_id));
+    const lines = db.orderItems.filter((line) => orderIds.has(line.order_id));
+
+    const byItemMap = {};
+    lines.forEach((line) => {
+      const item = getItem(line.item_id);
+      const name = item ? item.item_name : `Item #${line.item_id}`;
+      if (!byItemMap[line.item_id]) {
+        byItemMap[line.item_id] = {
+          item_id: line.item_id,
+          item_name: name,
+          quantity: 0,
+          revenue: 0,
+          stock: item ? item.stock : 0,
+        };
+      }
+      byItemMap[line.item_id].quantity += line.quantity;
+      byItemMap[line.item_id].revenue = money(
+        byItemMap[line.item_id].revenue + line.quantity * line.unit_price
+      );
+    });
+
+    const byDayMap = {};
+    orders.forEach((order) => {
+      const date = (order.timestamp || "").slice(0, 10) || "Unknown";
+      if (!byDayMap[date]) {
+        byDayMap[date] = { date, revenue: 0, orders: 0 };
+      }
+      byDayMap[date].revenue = money(byDayMap[date].revenue + order.total_price);
+      byDayMap[date].orders += 1;
+    });
+
+    const revenue = money(orders.reduce((sum, order) => sum + order.total_price, 0));
+    return {
+      stall_name: stall ? stall.stall_name : "",
+      order_count: orders.length,
+      revenue,
+      items_sold: lines.reduce((sum, line) => sum + line.quantity, 0),
+      average_order: orders.length ? money(revenue / orders.length) : 0,
+      by_item: Object.values(byItemMap).sort((a, b) => b.quantity - a.quantity),
+      by_day: Object.values(byDayMap).sort((a, b) => a.date.localeCompare(b.date)),
+      low_stock: getItems(stallId).filter((item) => item.stock <= 5),
+    };
   }
 
   return {
@@ -275,14 +371,17 @@ const Store = (() => {
     verifyStallPassword,
     addItem,
     updateItem,
+    updateStock,
     updateItemImage,
     hideItem,
     getItems,
+    getAvailableStock,
     addToOrder,
     removeFromOrder,
     clearOrder,
     getCartDetails,
     completeOrder,
+    getStallStats,
     ensureInitialData,
   };
 })();

@@ -220,6 +220,28 @@ input[type="file"] {
   letter-spacing: 0.06em;
 }
 
+.pos-tabs {
+  display: flex;
+  gap: 6px;
+  background: #efe4d2;
+  padding: 4px;
+  border-radius: 999px;
+}
+
+.tab {
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tab.is-active {
+  background: var(--navy);
+  color: #fff;
+}
+
 .pos-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.8fr);
@@ -371,6 +393,127 @@ input[type="file"] {
   margin: 6px 0 0;
 }
 
+.stock-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.stock-badge {
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #dceee3;
+  color: var(--green);
+}
+
+.stock-badge.is-low {
+  background: #f4e3b8;
+  color: #8a5a12;
+}
+
+.stock-badge.is-out {
+  background: #f3d2cc;
+  color: var(--red);
+}
+
+.stock-editor {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.stock-editor input {
+  width: 72px;
+  padding: 6px 8px;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.stats-view {
+  padding: 16px calc(16px + var(--safe-right)) calc(16px + var(--safe-bottom)) calc(16px + var(--safe-left));
+}
+
+.stats-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stats-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.kpi {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.kpi strong {
+  display: block;
+  font-size: 1.25rem;
+  margin-top: 4px;
+}
+
+.stats-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.chart-card {
+  margin: 0;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.chart-card figcaption {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.chart-card canvas {
+  width: 100%;
+  display: block;
+}
+
+.stats-table-wrap {
+  overflow-x: auto;
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.stats-table th,
+.stats-table td {
+  text-align: left;
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
 .qty-controls {
   display: flex;
   align-items: center;
@@ -505,6 +648,12 @@ input[type="file"] {
 
   .pos-header {
     gap: 8px;
+  }
+
+  .pos-tabs {
+    order: 3;
+    width: 100%;
+    justify-content: center;
   }
 
   .menu-list {

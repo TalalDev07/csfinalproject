@@ -1,6 +1,7 @@
 const state = {
   stall: null,
   search: "",
+  tab: "register",
 };
 
 const loginScreen = document.getElementById("login-screen");
@@ -17,6 +18,16 @@ const stallTitle = document.getElementById("stall-title");
 const stallType = document.getElementById("stall-type");
 const modalRoot = document.getElementById("modal-root");
 const modalBox = document.getElementById("modal-box");
+const registerView = document.getElementById("register-view");
+const statsView = document.getElementById("stats-view");
+const tabRegister = document.getElementById("tab-register");
+const tabStats = document.getElementById("tab-stats");
+const addItemBtn = document.getElementById("add-item-btn");
+const statsKpis = document.getElementById("stats-kpis");
+const statsSubtitle = document.getElementById("stats-subtitle");
+const statsTable = document.getElementById("stats-table");
+const chartItems = document.getElementById("chart-items");
+const chartDays = document.getElementById("chart-days");
 
 function money(value) {
   return Number(value).toFixed(3);
@@ -119,8 +130,19 @@ function enterPos(stall) {
   passwordInput.value = "";
   menuSearch.value = "";
   showScreen("pos");
+  showTab("register");
   loadMenu();
   loadCart();
+}
+
+function showTab(name) {
+  state.tab = name;
+  registerView.hidden = name !== "register";
+  statsView.hidden = name !== "stats";
+  addItemBtn.hidden = name !== "register";
+  tabRegister.classList.toggle("is-active", name === "register");
+  tabStats.classList.toggle("is-active", name === "stats");
+  if (name === "stats") loadStats();
 }
 
 function readImageFile(file) {
@@ -174,6 +196,18 @@ function pickImage(onPicked) {
   input.click();
 }
 
+function stockClass(available) {
+  if (available <= 0) return "is-out";
+  if (available <= 5) return "is-low";
+  return "";
+}
+
+function stockLabel(available, total) {
+  if (available <= 0) return "Out of stock";
+  if (available !== total) return `${available} left of ${total}`;
+  return `${total} in stock`;
+}
+
 function itemPhotoHtml(item) {
   if (item.image_path) {
     return `<img class="item-photo" src="${item.image_path}" alt="${escapeHtml(item.item_name)}" data-photo>`;
@@ -207,6 +241,7 @@ function loadMenu() {
   }
 
   visible.forEach((item) => {
+    const available = Store.getAvailableStock(item.item_id);
     const card = document.createElement("article");
     card.className = "item-card";
     card.innerHTML = `
@@ -215,15 +250,32 @@ function loadMenu() {
         <h4>${escapeHtml(item.item_name)}</h4>
         <p class="muted">${escapeHtml(item.description || "")}</p>
         <p class="price">KWD ${money(item.price)}</p>
+        <div class="stock-row">
+          <span class="stock-badge ${stockClass(available)}">${stockLabel(available, item.stock)}</span>
+          <label class="stock-editor">
+            Stock
+            <input data-stock type="number" min="0" step="1" value="${item.stock}">
+          </label>
+        </div>
         <button class="photo-action" type="button" data-photo>${item.image_path ? "Change photo" : "Add photo"}</button>
       </div>
       <div class="item-actions">
         <button class="btn btn-ghost btn-compact" type="button" data-edit>Edit</button>
-        <button class="btn btn-primary btn-compact" type="button" data-add>+ Add</button>
+        <button class="btn btn-primary btn-compact" type="button" data-add ${available ? "" : "disabled"}>+ Add</button>
       </div>
     `;
     card.querySelector("[data-add]").addEventListener("click", () => addItem(item.item_id));
     card.querySelector("[data-edit]").addEventListener("click", () => openEditItem(item));
+    card.querySelector("[data-stock]").addEventListener("change", (event) => {
+      try {
+        Store.updateStock(item.item_id, event.target.value);
+        loadMenu();
+        loadCart();
+      } catch (error) {
+        window.alert(error.message);
+        loadMenu();
+      }
+    });
     card.querySelectorAll("[data-photo]").forEach((button) => {
       button.addEventListener("click", () => {
         pickImage((imagePath) => {
@@ -268,13 +320,19 @@ function loadCart() {
 }
 
 function addItem(itemId) {
-  Store.addToOrder(itemId);
+  if (!Store.addToOrder(itemId)) {
+    window.alert("Not enough stock for that item.");
+    loadMenu();
+    return;
+  }
   loadCart();
+  loadMenu();
 }
 
 function removeItem(itemId) {
   Store.removeFromOrder(itemId);
   loadCart();
+  loadMenu();
 }
 
 function cancelOrder() {
@@ -283,6 +341,7 @@ function cancelOrder() {
   if (!window.confirm("Clear current order?")) return;
   Store.clearOrder();
   loadCart();
+  loadMenu();
 }
 
 function saveReceiptImage(receipt) {
@@ -355,6 +414,7 @@ function completeOrder() {
   try {
     const receipt = Store.completeOrder(state.stall.stall_id);
     loadCart();
+    loadMenu();
     const lines = receipt.items
       .map(
         (item) => `
@@ -455,6 +515,7 @@ function bindItemForm(initialImage, onSave) {
         name: document.getElementById("item-name").value,
         price: document.getElementById("item-price").value,
         description: document.getElementById("item-desc").value,
+        stock: document.getElementById("item-stock").value,
         imagePath,
       });
       closeModal();
@@ -467,7 +528,7 @@ function bindItemForm(initialImage, onSave) {
   });
 }
 
-function itemFormHtml({ title, name, price, description, imagePath, saveLabel, extra = "" }) {
+function itemFormHtml({ title, name, price, description, stock, imagePath, saveLabel, extra = "" }) {
   const preview = imagePath
     ? `<img src="${imagePath}" alt="Item preview">`
     : "Optional photo";
@@ -477,6 +538,8 @@ function itemFormHtml({ title, name, price, description, imagePath, saveLabel, e
     <input id="item-name" type="text" value="${escapeHtml(name || "")}">
     <label for="item-price">Price (e.g. 2.500)</label>
     <input id="item-price" type="text" value="${escapeHtml(price || "")}">
+    <label for="item-stock">Stock count</label>
+    <input id="item-stock" type="number" min="0" step="1" value="${escapeHtml(stock ?? 20)}">
     <label for="item-desc">Description</label>
     <input id="item-desc" type="text" value="${escapeHtml(description || "")}">
     <label for="item-image">Item photo</label>
@@ -495,8 +558,8 @@ function openAddItem() {
     title: "Add New Menu Item",
     saveLabel: "Save Menu Item",
   }));
-  bindItemForm("", ({ name, price, description, imagePath }) => {
-    Store.addItem(state.stall.stall_id, name, price, description, imagePath);
+  bindItemForm("", ({ name, price, description, imagePath, stock }) => {
+    Store.addItem(state.stall.stall_id, name, price, description, imagePath, stock);
   });
 }
 
@@ -506,13 +569,14 @@ function openEditItem(item) {
     name: item.item_name,
     price: money(item.price),
     description: item.description,
+    stock: item.stock,
     imagePath: item.image_path,
     saveLabel: "Save Changes",
     extra: `<button id="hide-item-btn" class="btn btn-ghost btn-block" type="button">Hide from menu</button>`,
   }));
 
-  bindItemForm(item.image_path, ({ name, price, description, imagePath }) => {
-    Store.updateItem(item.item_id, name, price, description, imagePath);
+  bindItemForm(item.image_path, ({ name, price, description, imagePath, stock }) => {
+    Store.updateItem(item.item_id, name, price, description, imagePath, stock);
   });
 
   document.getElementById("hide-item-btn").addEventListener("click", () => {
@@ -526,6 +590,178 @@ function openEditItem(item) {
   });
 }
 
+function loadStats() {
+  const stats = Store.getStallStats(state.stall.stall_id);
+  statsSubtitle.textContent = `${stats.stall_name} · ${stats.order_count} orders`;
+  statsKpis.innerHTML = `
+    <article class="kpi"><span>Revenue</span><strong>KWD ${money(stats.revenue)}</strong></article>
+    <article class="kpi"><span>Orders</span><strong>${stats.order_count}</strong></article>
+    <article class="kpi"><span>Items sold</span><strong>${stats.items_sold}</strong></article>
+    <article class="kpi"><span>Avg order</span><strong>KWD ${money(stats.average_order)}</strong></article>
+    <article class="kpi"><span>Low stock</span><strong>${stats.low_stock.length}</strong></article>
+  `;
+
+  const rows = stats.by_item.length
+    ? stats.by_item
+        .map(
+          (item) => `
+        <tr>
+          <td>${escapeHtml(item.item_name)}</td>
+          <td>${item.quantity}</td>
+          <td>KWD ${money(item.revenue)}</td>
+          <td>${item.stock}</td>
+        </tr>
+      `
+        )
+        .join("")
+    : `<tr><td colspan="4">No sales yet for this stall.</td></tr>`;
+
+  statsTable.innerHTML = `
+    <table class="stats-table">
+      <thead>
+        <tr><th>Item</th><th>Sold</th><th>Revenue</th><th>Stock left</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+
+  drawBarChart(
+    chartItems,
+    stats.by_item.map((item) => ({ label: item.item_name, value: item.quantity })),
+    "#1f3554"
+  );
+  drawBarChart(
+    chartDays,
+    stats.by_day.map((day) => ({ label: day.date.slice(5) || day.date, value: day.revenue })),
+    "#2f6d4f"
+  );
+}
+
+function drawBarChart(canvas, rows, color) {
+  const width = canvas.clientWidth || 320;
+  const height = 220;
+  const scale = window.devicePixelRatio || 1;
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "#fffaf2";
+  ctx.fillRect(0, 0, width, height);
+
+  if (!rows.length) {
+    ctx.fillStyle = "#7a6854";
+    ctx.font = "14px Source Sans 3, sans-serif";
+    ctx.fillText("No data yet", 16, height / 2);
+    return;
+  }
+
+  const top = 16;
+  const bottom = height - 36;
+  const left = 36;
+  const right = width - 12;
+  const max = Math.max(...rows.map((row) => row.value), 1);
+  const barWidth = Math.max(12, (right - left) / rows.length - 8);
+
+  rows.forEach((row, index) => {
+    const barHeight = ((bottom - top) * row.value) / max;
+    const x = left + index * ((right - left) / rows.length);
+    ctx.fillStyle = color;
+    ctx.fillRect(x, bottom - barHeight, barWidth, barHeight);
+    ctx.fillStyle = "#7a6854";
+    ctx.font = "11px Source Sans 3, sans-serif";
+    ctx.fillText(String(row.label).slice(0, 10), x, height - 14);
+  });
+}
+
+function saveSalesReport(stats) {
+  const width = 920;
+  const chartH = 200;
+  const tableRows = Math.max(stats.by_item.length, 1);
+  const height = 430 + tableRows * 28 + chartH;
+  const scale = 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(scale, scale);
+
+  ctx.fillStyle = "#fffaf2";
+  ctx.fillRect(0, 0, width, height);
+  ctx.fillStyle = "#1f3554";
+  ctx.fillRect(0, 0, width, 10);
+
+  ctx.fillStyle = "#23180f";
+  ctx.font = "700 28px Fraunces, Georgia, serif";
+  ctx.fillText("Carnival Sales Report", 36, 56);
+  ctx.font = "16px Source Sans 3, sans-serif";
+  ctx.fillStyle = "#7a6854";
+  ctx.fillText(`${stats.stall_name}  ·  ${new Date().toLocaleString()}`, 36, 82);
+
+  const kpis = [
+    ["Revenue", `KWD ${money(stats.revenue)}`],
+    ["Orders", String(stats.order_count)],
+    ["Items sold", String(stats.items_sold)],
+    ["Avg order", `KWD ${money(stats.average_order)}`],
+  ];
+  kpis.forEach((kpi, index) => {
+    const x = 36 + index * 215;
+    ctx.fillStyle = "#fff";
+    ctx.strokeStyle = "#d7c7ad";
+    ctx.strokeRect(x, 104, 200, 64);
+    ctx.fillStyle = "#7a6854";
+    ctx.font = "13px Source Sans 3, sans-serif";
+    ctx.fillText(kpi[0], x + 14, 128);
+    ctx.fillStyle = "#23180f";
+    ctx.font = "700 20px Source Sans 3, sans-serif";
+    ctx.fillText(kpi[1], x + 14, 152);
+  });
+
+  const chartTop = 192;
+  ctx.fillStyle = "#23180f";
+  ctx.font = "700 16px Source Sans 3, sans-serif";
+  ctx.fillText("Items sold", 36, chartTop);
+  const bars = stats.by_item.slice(0, 8);
+  const max = Math.max(...bars.map((item) => item.quantity), 1);
+  bars.forEach((item, index) => {
+    const x = 36 + index * 108;
+    const barHeight = (140 * item.quantity) / max;
+    ctx.fillStyle = "#1f3554";
+    ctx.fillRect(x, chartTop + 20 + (140 - barHeight), 72, barHeight);
+    ctx.fillStyle = "#7a6854";
+    ctx.font = "11px Source Sans 3, sans-serif";
+    ctx.fillText(item.item_name.slice(0, 11), x, chartTop + 178);
+    ctx.fillText(String(item.quantity), x, chartTop + 12 + (140 - barHeight));
+  });
+
+  const tableTop = chartTop + chartH + 24;
+  ctx.fillStyle = "#23180f";
+  ctx.font = "700 16px Source Sans 3, sans-serif";
+  ctx.fillText("Item breakdown", 36, tableTop);
+  ctx.font = "13px Source Sans 3, sans-serif";
+  ctx.fillText("Item", 36, tableTop + 28);
+  ctx.fillText("Sold", 420, tableTop + 28);
+  ctx.fillText("Revenue", 520, tableTop + 28);
+  ctx.fillText("Stock left", 700, tableTop + 28);
+
+  (stats.by_item.length ? stats.by_item : [{ item_name: "No sales yet", quantity: 0, revenue: 0, stock: "-" }]).forEach(
+    (item, index) => {
+      const y = tableTop + 54 + index * 28;
+      ctx.fillStyle = "#23180f";
+      ctx.fillText(String(item.item_name).slice(0, 36), 36, y);
+      ctx.fillText(String(item.quantity), 420, y);
+      ctx.fillText(`KWD ${money(item.revenue || 0)}`, 520, y);
+      ctx.fillText(String(item.stock), 700, y);
+    }
+  );
+
+  const link = document.createElement("a");
+  const slug = stats.stall_name.toLowerCase().replace(/\s+/g, "-") || "stall";
+  link.download = `carnival-sales-${slug}.png`;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+}
+
 document.getElementById("login-btn").addEventListener("click", login);
 document.getElementById("quick-login-btn").addEventListener("click", quickLogin);
 document.getElementById("create-stall-btn").addEventListener("click", openCreateStall);
@@ -533,6 +769,11 @@ document.getElementById("add-item-btn").addEventListener("click", openAddItem);
 document.getElementById("cancel-btn").addEventListener("click", cancelOrder);
 document.getElementById("checkout-btn").addEventListener("click", completeOrder);
 document.getElementById("switch-stall-btn").addEventListener("click", switchStall);
+tabRegister.addEventListener("click", () => showTab("register"));
+tabStats.addEventListener("click", () => showTab("stats"));
+document.getElementById("save-report-btn").addEventListener("click", () => {
+  saveSalesReport(Store.getStallStats(state.stall.stall_id));
+});
 menuSearch.addEventListener("input", () => {
   state.search = menuSearch.value;
   loadMenu();

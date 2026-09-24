@@ -42,10 +42,14 @@
           <h2 id="stall-title">Carnival POS</h2>
           <span id="stall-type" class="badge"></span>
         </div>
+        <nav class="pos-tabs" aria-label="Stall sections">
+          <button id="tab-register" class="tab is-active" type="button">Register</button>
+          <button id="tab-stats" class="tab" type="button">Sales</button>
+        </nav>
         <button id="add-item-btn" class="btn btn-primary" type="button">Add Menu Item</button>
       </header>
 
-      <div class="pos-workspace">
+      <div id="register-view" class="pos-workspace">
         <section class="panel menu-panel">
           <div class="menu-toolbar">
             <h3>Menu Catalog</h3>
@@ -68,6 +72,30 @@
           </div>
         </aside>
       </div>
+
+      <section id="stats-view" class="stats-view" hidden>
+        <div class="panel stats-panel">
+          <div class="stats-toolbar">
+            <div>
+              <h3>Sales</h3>
+              <p id="stats-subtitle" class="muted"></p>
+            </div>
+            <button id="save-report-btn" class="btn btn-primary" type="button">Save Report</button>
+          </div>
+          <div id="stats-kpis" class="stats-kpis"></div>
+          <div class="stats-charts">
+            <figure class="chart-card">
+              <figcaption>Items sold</figcaption>
+              <canvas id="chart-items" height="220"></canvas>
+            </figure>
+            <figure class="chart-card">
+              <figcaption>Revenue by day</figcaption>
+              <canvas id="chart-days" height="220"></canvas>
+            </figure>
+          </div>
+          <div id="stats-table" class="stats-table-wrap"></div>
+        </div>
+      </section>
     </section>
   </div>
 
