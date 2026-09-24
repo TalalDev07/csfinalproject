@@ -774,6 +774,27 @@ tabStats.addEventListener("click", () => showTab("stats"));
 document.getElementById("save-report-btn").addEventListener("click", () => {
   saveSalesReport(Store.getStallStats(state.stall.stall_id));
 });
+document.getElementById("clear-sales-btn").addEventListener("click", () => {
+  openModal(`
+    <h3>Clear sales?</h3>
+    <p class="stats-warning">
+      This permanently deletes all orders, charts, and totals for
+      <strong>${escapeHtml(state.stall.stall_name)}</strong>.
+      Stock counts stay as they are. Save a report first if you need a copy.
+      This cannot be undone.
+    </p>
+    <div class="receipt-actions">
+      <button id="cancel-clear-btn" class="btn btn-ghost" type="button">Cancel</button>
+      <button id="confirm-clear-btn" class="btn btn-danger" type="button">Clear Sales</button>
+    </div>
+  `);
+  document.getElementById("cancel-clear-btn").addEventListener("click", closeModal);
+  document.getElementById("confirm-clear-btn").addEventListener("click", () => {
+    Store.clearStallSales(state.stall.stall_id);
+    closeModal();
+    loadStats();
+  });
+});
 menuSearch.addEventListener("input", () => {
   state.search = menuSearch.value;
   loadMenu();

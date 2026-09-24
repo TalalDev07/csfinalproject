@@ -451,6 +451,21 @@ input[type="file"] {
   margin-bottom: 16px;
 }
 
+.stats-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stats-warning {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f3d2cc;
+  color: #7a2418;
+  font-size: 0.95rem;
+}
+
 .stats-kpis {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));

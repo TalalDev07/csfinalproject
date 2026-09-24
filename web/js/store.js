@@ -364,6 +364,17 @@ const Store = (() => {
     };
   }
 
+  function clearStallSales(stallId) {
+    const db = load();
+    const keepOrders = db.orders.filter((order) => order.stall_id !== stallId);
+    const removedIds = new Set(
+      db.orders.filter((order) => order.stall_id === stallId).map((order) => order.order_id)
+    );
+    db.orders = keepOrders;
+    db.orderItems = db.orderItems.filter((line) => !removedIds.has(line.order_id));
+    save(db);
+  }
+
   return {
     getStalls,
     getStall,
@@ -382,6 +393,7 @@ const Store = (() => {
     getCartDetails,
     completeOrder,
     getStallStats,
+    clearStallSales,
     ensureInitialData,
   };
 })();
